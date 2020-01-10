@@ -76,6 +76,11 @@ export const DISPLAY_NAME_CHANGED = 'conference.displayNameChanged';
 export const DOMINANT_SPEAKER_CHANGED = 'conference.dominantSpeaker';
 
 /**
+ * UTC conference timestamp when first participant joined.
+ */
+export const CONFERENCE_CREATED_TIMESTAMP = 'conference.createdTimestamp';
+
+/**
  * Indicates that DTMF support changed.
  */
 export const DTMF_SUPPORT_CHANGED = 'conference.dtmfSupportChanged';
@@ -244,6 +249,17 @@ export const SUSPEND_DETECTED = 'conference.suspendDetected';
  * Event indicates that local user is talking while he muted himself
  */
 export const TALK_WHILE_MUTED = 'conference.talk_while_muted';
+
+/**
+ * Event indicates that the current selected input device has no signal
+ */
+export const NO_AUDIO_INPUT = 'conference.no_audio_input';
+
+/**
+ * Event indicates that the current conference audio input switched between audio
+ * input states,i.e. with or without audio input.
+ */
+export const AUDIO_INPUT_STATE_CHANGE = 'conference.audio_input_state_changed';
 
 /**
  * A new media track was added to the conference. The event provides the

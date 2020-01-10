@@ -61,9 +61,19 @@ export default class BrowserCapabilities extends BrowserDetection {
      */
     isChromiumBased() {
         return this.isChrome()
+            || this.isChromiumBasedEdge()
             || this.isElectron()
             || this.isNWJS()
             || this.isOpera();
+    }
+
+    /**
+     * Checks if the current browser is Edge that is Chromium based.
+     */
+    isChromiumBasedEdge() {
+        const REQUIRED_EDGE_VERSION = 72;
+
+        return this.isEdge() && this.isVersionGreaterThan(REQUIRED_EDGE_VERSION);
     }
 
     /**
@@ -107,7 +117,7 @@ export default class BrowserCapabilities extends BrowserDetection {
      * @returns {boolean}
      */
     isUserInteractionRequiredForUnmute() {
-        return this.isFirefox() || this.isSafari();
+        return (this.isFirefox() && this.isVersionLessThan('68')) || this.isSafari();
     }
 
     /**

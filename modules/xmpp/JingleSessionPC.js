@@ -274,7 +274,7 @@ export default class JingleSessionPC extends JingleSession {
         if (options.gatherStats) {
             pcOptions.maxstats = DEFAULT_MAX_STATS;
         }
-
+        pcOptions.capScreenshareBitrate = false;
         if (this.isP2P) {
             // simulcast needs to be disabled for P2P (121) calls
             pcOptions.disableSimulcast = true;
@@ -295,6 +295,21 @@ export default class JingleSessionPC extends JingleSession {
             pcOptions.enableFirefoxSimulcast
                 = options.testing && options.testing.enableFirefoxSimulcast;
             pcOptions.enableLayerSuspension = options.enableLayerSuspension;
+
+            // disable simulcast for screenshare and set the max bitrate to
+            // 500Kbps if the testing flag is present in config.js.
+            if (options.testing
+                && options.testing.capScreenshareBitrate
+                && typeof options.testing.capScreenshareBitrate === 'number') {
+                pcOptions.capScreenshareBitrate
+                    = Math.random()
+                    < options.testing.capScreenshareBitrate;
+
+                // add the capScreenshareBitrate to the permanent properties so
+                // that it's included with every event that we send to the
+                // analytics backend.
+                Statistics.analytics.addPermanentProperties({ capScreenshareBitrate: pcOptions.capScreenshareBitrate });
+            }
         }
 
         if (options.startSilent) {
@@ -1651,6 +1666,19 @@ export default class JingleSessionPC extends JingleSession {
     }
 
     /**
+     * Replaces the existing mediaStream on the underlying peerconnection with the newly
+     * added stream on the same JitsiLocalTrack wihtout the need to perform a offer/answer
+     * cycle.
+     * @param {JitsiLocalTrack} track - the current track in use whose media stream has been
+     * updated.
+     * @returns {Promise} which resolves once the replacement is complete or reject with an
+     * error {string}.
+     */
+    replaceTrackWithoutOfferAnswer(track) {
+        return this.peerconnection.replaceTrackWithoutOfferAnswer(track);
+    }
+
+    /**
      * Replaces <tt>oldTrack</tt> with <tt>newTrack</tt> and performs a single
      * offer/answer cycle after both operations are done. Either
      * <tt>oldTrack</tt> or <tt>newTrack</tt> can be null; replacing a valid
@@ -1668,7 +1696,19 @@ export default class JingleSessionPC extends JingleSession {
 
             // NOTE the code below assumes that no more than 1 video track
             // can be added to the peer connection.
-            // Transition from no video to video (possibly screen sharing)
+            // Transition from camera to desktop share
+            // or transition from one camera source to another.
+            if (this.peerconnection.options.capScreenshareBitrate
+                && oldTrack && newTrack && newTrack.isVideoTrack()) {
+                // Clearing current primary SSRC will make
+                // the SdpConsistency generate a new one which will result
+                // with:
+                // 1. source-remove for the old video stream.
+                // 2. source-add for the new video stream.
+                this.peerconnection.clearRecvonlySsrc();
+            }
+
+            // Transition from no video to video (unmute).
             if (!oldTrack && newTrack && newTrack.isVideoTrack()) {
                 // Clearing current primary SSRC will make
                 // the SdpConsistency generate a new one which will result
@@ -1700,6 +1740,14 @@ export default class JingleSessionPC extends JingleSession {
 
                             this.notifyMySSRCUpdate(
                                 new SDP(oldLocalSdp), newLocalSDP);
+
+                            // configure max bitrate only when media is routed
+                            // through JVB. For p2p case, browser takes care of
+                            // adjusting the uplink based on the feedback it
+                            // gets from the peer.
+                            if (newTrack && !this.isP2P) {
+                                this.peerconnection.setMaxBitRate(newTrack);
+                            }
                             finishedCallback();
                         },
                         finishedCallback /* will be called with en error */);
